@@ -235,3 +235,45 @@ export const getAllEntries = async (req, res) => {
     });
   }
 };
+
+export const getLastTrip = async (req, res) => {
+  const { vehicle_id, customer_id } = req.query;
+
+  // Validation
+  if (!vehicle_id || !customer_id) {
+    return res.status(400).json({
+      error: 'Both vehicle_id and customer_id are required in query params',
+    });
+  }
+
+  try {
+    const lastTrip = await prisma.dieselEntry.findFirst({
+      where: {
+        vehicle_id: parseInt(vehicle_id),
+        customer_id: parseInt(customer_id),
+      },
+      orderBy: {
+        entry_date: 'desc',        // Most recent trip first
+        // createdAt: 'desc'       // ← Use this if you prefer created timestamp
+      },
+      // No include needed – we only want flat data for auto-fill
+    });
+
+    if (!lastTrip) {
+      return res.status(404).json({
+        error: 'No past trip found for this Customer + Vehicle combination.',
+      });
+    }
+
+    // Return exactly what frontend expects
+    res.status(200).json({
+      success: true,
+      data: lastTrip,
+    });
+  } catch (error) {
+    console.error('getLastTrip Error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch last trip details',
+    });
+  }
+};
