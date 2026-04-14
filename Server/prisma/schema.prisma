@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ====================== AUTH ======================
+model User {
+  id          Int      @id @default(autoincrement())
+  email       String   @unique @db.VarChar(255)
+  password    String
+  role        String   @default("operator") // operator | admin
+  name        String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("users")
+}
+
+// ====================== MASTERS ======================
+model Driver {
+  id           Int           @id @default(autoincrement())
+  driver_name  String        @db.VarChar(150)
+  driver_code  String        @unique @db.VarChar(20)
+  is_active    Boolean       @default(true)
+  created_at   DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime      @updatedAt @db.Timestamptz(6)
+
+  dieselEntries DieselEntry[]
+
+  @@map("drivers")
+  @@index([driver_name])
+}
+
+model City {
+  id                Int           @id @default(autoincrement())
+  city_name         String        @unique @db.VarChar(100)
+  is_active         Boolean       @default(true)
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime      @updatedAt @db.Timestamptz(6)
+
+  fromDieselEntries DieselEntry[] @relation("FromCity")
+  toDieselEntries   DieselEntry[] @relation("ToCity")
+  fromRoutes        Route[]       @relation("FromRoute")
+  toRoutes          Route[]       @relation("ToRoute")
+
+  @@map("cities")
+}
+
+model Pump {
+  id            Int           @id @default(autoincrement())
+  pump_name     String        @unique @db.VarChar(150)
+  is_active     Boolean       @default(true)
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime      @updatedAt @db.Timestamptz(6)
+
+  dieselEntries DieselEntry[]
+
+  @@map("pumps")
+}
+
+model VehicleModelType {
+  id       Int       @id @default(autoincrement())
+  model_name String  @unique @db.VarChar(100)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  vehicles Vehicle[]
+
+  @@map("vehicle_model_types")
+}
+
+model VehicleVertical {
+  id            Int       @id @default(autoincrement())
+  vertical_name String    @unique @db.VarChar(50)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  vehicles Vehicle[]
+
+  @@map("vehicle_verticals")
+}
+
+enum OwnershipType {
+  Own
+  Attached
+}
+
+model Vehicle {
+  id                 Int            @id @default(autoincrement())
+  vehicle_number     String         @unique @db.VarChar(20)
+  vehicle_short_code String?        @db.VarChar(20)
+  model_type_id      Int
+  vertical_id        Int
+  ownership_type     OwnershipType  @default(Own)
+  owner_name         String         @db.VarChar(150)
+  loaded_mileage     Decimal?       @db.Decimal(6, 2)
+  empty_mileage      Decimal?       @db.Decimal(6, 2)
+  is_active          Boolean        @default(true)
+  created_at         DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime       @updatedAt @db.Timestamptz(6)
+
+  modelType     VehicleModelType @relation(fields: [model_type_id], references: [id], onDelete: Restrict)
+  vertical      VehicleVertical  @relation(fields: [vertical_id], references: [id], onDelete: Restrict)
+  dieselEntries DieselEntry[]
+
+  @@map("vehicles")
+  @@index([vehicle_number])
+}
+
+model Customer {
+  id            Int           @id @default(autoincrement())
+  customer_name String        @unique @db.VarChar(200)
+  is_active     Boolean       @default(true)
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime      @updatedAt @db.Timestamptz(6)
+
+  dieselEntries DieselEntry[]
+
+  @@map("customers")
+}
+
+model ExtraDieselRemark {
+  id            Int           @id @default(autoincrement())
+  remark_text   String        @unique @db.VarChar(200)
+  is_active     Boolean       @default(true)
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime      @updatedAt @db.Timestamptz(6)
+
+  dieselEntries DieselEntry[]
+
+  @@map("extra_diesel_remarks")
+}
+
+model ExtraDieselApprover {
+  id            Int           @id @default(autoincrement())
+  approver_name String        @db.VarChar(100)
+  is_active     Boolean       @default(true)
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime      @updatedAt @db.Timestamptz(6)
+
+  dieselEntries DieselEntry[]
+
+  @@map("extra_diesel_approvers")
+}
+
+model Route {
+  id                   Int      @id @default(autoincrement())
+  route_code           String   @unique @db.VarChar(50)
+  route_description    String?  @db.Text
+  from_city_id         Int?
+  to_city_id           Int?
+  standard_diesel_qty  Decimal? @db.Decimal(8, 2)
+  standard_advance     Decimal? @db.Decimal(10, 2)
+  is_active            Boolean  @default(true)
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @updatedAt @db.Timestamptz(6)
+
+  fromCity   City? @relation("FromRoute", fields: [from_city_id], references: [id])
+  toCity     City? @relation("ToRoute", fields: [to_city_id], references: [id])
+  dieselEntries DieselEntry[]
+
+  @@map("routes")
+}
+
+enum TripStatus {
+  Loaded
+  Empty
+}
+
+model DieselEntry {
+  id                        Int            @id @default(autoincrement())
+  entry_date                DateTime       @default(now()) @db.Date
+  transaction_id            String?        @db.VarChar(100)
+  vehicle_id                Int
+  driver_id                 Int
+  route_id                  Int?
+  invoice_number            String         @db.VarChar(100)
+  invoice_time              DateTime?      @db.Time(0)
+  material_type             String?        @db.VarChar(100)
+  customer_id               Int?
+  from_city_id              Int?
+  to_city_id                Int?
+  km                        Decimal?       @db.Decimal(10, 2)
+  diesel_qty                Decimal        @db.Decimal(8, 2)
+  pump_id                   Int?
+  trip_advance_amount       Decimal        @default(0) @db.Decimal(10, 2)
+  fooding_amount            Decimal        @default(0) @db.Decimal(10, 2)
+  loading_unloading_amount  Decimal        @default(0) @db.Decimal(10, 2)
+  loading_weight            Decimal?       @db.Decimal(10, 2)
+  extra_diesel_qty          Decimal?       @default(0) @db.Decimal(8, 2)
+  extra_diesel_remark_id    Int?
+  approved_by_id            Int?
+  cut_diesel_qty            Decimal?       @default(0) @db.Decimal(8, 2)
+  remarks                   String?        @db.Text
+  is_new_trip               Boolean        @default(true)
+  trip_status               TripStatus
+  created_by                String?
+  created_at                DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime       @updatedAt @db.Timestamptz(6)
+
+  vehicle      Vehicle                @relation(fields: [vehicle_id], references: [id])
+  driver       Driver                 @relation(fields: [driver_id], references: [id])
+  route        Route?                 @relation(fields: [route_id], references: [id])
+  customer     Customer?              @relation(fields: [customer_id], references: [id])
+  fromCity     City?                  @relation("FromCity", fields: [from_city_id], references: [id])
+  toCity       City?                  @relation("ToCity", fields: [to_city_id], references: [id])
+  pump         Pump?                  @relation(fields: [pump_id], references: [id])
+  extraRemark  ExtraDieselRemark?     @relation(fields: [extra_diesel_remark_id], references: [id])
+  approver     ExtraDieselApprover?   @relation(fields: [approved_by_id], references: [id])
+
+  @@map("diesel_entries")
+  @@index([entry_date])
+  @@index([vehicle_id])
+  @@index([driver_id])
+  @@index([created_at])
+}
