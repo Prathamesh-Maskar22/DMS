@@ -189,6 +189,9 @@ model DieselEntry {
   trip_advance_amount       Decimal        @default(0) @db.Decimal(10, 2)
   fooding_amount            Decimal        @default(0) @db.Decimal(10, 2)
   loading_unloading_amount  Decimal        @default(0) @db.Decimal(10, 2)
+  kata_charges             Decimal        @default(0) @db.Decimal(10, 2)
+  border_charges           Decimal        @default(0) @db.Decimal(10, 2)
+  misc_charges             Decimal        @default(0) @db.Decimal(10, 2)
   loading_weight            Decimal?       @db.Decimal(10, 2)
   extra_diesel_qty          Decimal?       @default(0) @db.Decimal(8, 2)
   extra_diesel_remark_id    Int?

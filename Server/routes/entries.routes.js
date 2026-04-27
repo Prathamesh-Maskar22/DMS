@@ -1,6 +1,6 @@
 // src/routes/entries.routes.js
 import express from 'express';
-import { createDieselEntry,getAllEntries,getLastTrip } from '../controllers/entries.controller.js';
+import { createDieselEntry,getAllEntries,editEntries,getLastTrip,getLastTripVehicle,getDriverPending } from '../controllers/entries.controller.js';
 // Import your auth middleware here
 // import { verifyToken } from '../middleware/auth.middleware.js';
 
@@ -15,6 +15,9 @@ router.post(
 
 // GET /api/v1/entries - Fetch all entries
 router.get('/', getAllEntries); 
+router.put('/:id', editEntries); 
 router.get('/last-trip', getLastTrip);
+router.get('/last-trip-vehicle', getLastTripVehicle); 
+router.get('/driver-pending', getDriverPending);
 
 export default router;
