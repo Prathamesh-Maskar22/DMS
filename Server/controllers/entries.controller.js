@@ -14,7 +14,7 @@ const toJSON = (data) => {
 
 // Zod Schema - Fixed invoice_time validation
 const createDieselEntrySchema = z.object({
-  entry_date: z.string().optional(), 
+  entry_date: z.string().optional(),
   vehicle_id: z.number().int().positive(),
   driver_id: z.number().int().positive(),
   route_id: z.number().int().positive().optional(),
@@ -22,34 +22,34 @@ const createDieselEntrySchema = z.object({
   from_city_id: z.number().int().positive().optional(),
   to_city_id: z.number().int().positive().optional(),
   pump_id: z.number().int().positive().optional(),
-  
+
   // Invoice Details
   invoice_number: z.string().optional(),
   // FIX: Use .transform to ensure we get null instead of null string if empty
-  invoice_time: z.string().nullable().optional(), 
+  invoice_time: z.string().nullable().optional(),
   material_type: z.string().optional(),
   loading_weight: z.number().nonnegative().optional(),
-  
+
   // Diesel & KM
   km: z.number().nonnegative().optional(),
-  diesel_qty: z.number().positive(), 
-  
+  diesel_qty: z.number().positive(),
+
   // Financials
   trip_advance_amount: z.number().nonnegative().default(0),
   fooding_amount: z.number().nonnegative().default(0),
   loading_unloading_amount: z.number().nonnegative().default(0),
   kata_charges: z.number().nonnegative().default(0), // NEW
   border_charges: z.number().nonnegative().default(0), // NEW
-  misc_charges: z.number().nonnegative().default(0), 
+  misc_charges: z.number().nonnegative().default(0),
 
   // Extra Diesel
   extra_diesel_qty: z.number().nonnegative().default(0),
   extra_diesel_remark_id: z.number().int().positive().optional(),
   approved_by_id: z.number().int().positive().optional(),
-  
+
   // Cutting Diesel
   cut_diesel_qty: z.number().nonnegative().default(0),
-  
+
   // Meta
   remarks: z.string().optional(),
   is_new_trip: z.boolean().default(true),
@@ -76,26 +76,26 @@ export const createDieselEntry = async (req, res) => {
       data: {
         ...validated,
         created_by: req.user?.email || 'operator',
-        
+
         // Convert Date String to Date Object
-        entry_date: validated.entry_date 
-          ? new Date(validated.entry_date) 
+        entry_date: validated.entry_date
+          ? new Date(validated.entry_date)
           : new Date(),
-          
+
         // FIX: Handle invoice_time safely
-        invoice_time: validated.invoice_time 
-          ? new Date(`1970-01-01T${validated.invoice_time}`) 
+        invoice_time: validated.invoice_time
+          ? new Date(`1970-01-01T${validated.invoice_time}`)
           : null,
 
         // --- FIX STARTS HERE ---
-        
+
         // Handle Optional Decimals (km, loading_weight)
         // These can be null/undefined
         km: validated.km !== undefined ? new Prisma.Decimal(validated.km) : undefined,
-        loading_weight: validated.loading_weight 
-          ? new Prisma.Decimal(validated.loading_weight) 
+        loading_weight: validated.loading_weight
+          ? new Prisma.Decimal(validated.loading_weight)
           : undefined,
-        
+
         // Handle Required Decimals (diesel_qty, amounts)
         diesel_qty: new Prisma.Decimal(validated.diesel_qty),
         trip_advance_amount: new Prisma.Decimal(validated.trip_advance_amount),
@@ -103,17 +103,17 @@ export const createDieselEntry = async (req, res) => {
         loading_unloading_amount: new Prisma.Decimal(validated.loading_unloading_amount),
         kata_charges: new Prisma.Decimal(validated.kata_charges),       // NEW
         border_charges: new Prisma.Decimal(validated.border_charges),   // NEW
-        misc_charges: new Prisma.Decimal(validated.misc_charges),  
+        misc_charges: new Prisma.Decimal(validated.misc_charges),
         // Handle Decimals with Defaults (extra, cut)
         // FIX: Since schema has @default(0), we must pass 0, not Prisma.DbNull
-        extra_diesel_qty: validated.extra_diesel_qty > 0 
-          ? new Prisma.Decimal(validated.extra_diesel_qty) 
+        extra_diesel_qty: validated.extra_diesel_qty > 0
+          ? new Prisma.Decimal(validated.extra_diesel_qty)
           : new Prisma.Decimal(0), // <--- CHANGED FROM Prisma.DbNull
-          
-        cut_diesel_qty: validated.cut_diesel_qty > 0 
-          ? new Prisma.Decimal(validated.cut_diesel_qty) 
+
+        cut_diesel_qty: validated.cut_diesel_qty > 0
+          ? new Prisma.Decimal(validated.cut_diesel_qty)
           : new Prisma.Decimal(0), // <--- CHANGED FROM Prisma.DbNull
-          
+
         // --- FIX ENDS HERE ---
       },
       include: {
@@ -185,9 +185,59 @@ export const getAllEntries = async (req, res) => {
   }
 };
 
-// ... existing imports and helpers ...
+// ==================== GET ALL ENTRIES WITH PAGINATION ====================
+// export const getAllEntries = async (req, res) => {
+//   try {
+//     const page = Number(req.query.page) || 1;
+//     const limit = Number(req.query.limit) || 100;
 
-// --- NEW ZOD SCHEMA FOR UPDATES ---
+//     const skip = (page - 1) * limit;
+
+//     const [entries, totalCount] = await Promise.all([
+//       prisma.dieselEntry.findMany({
+//         skip,
+//         take: limit,
+//         orderBy: [
+//           { entry_date: 'desc' },
+//           { created_at: 'desc' },
+//         ],
+//         include: {
+//           vehicle: { select: { vehicle_number: true, vehicle_short_code: true } },
+//           driver: { select: { driver_name: true, driver_code: true } },
+//           route: { select: { route_code: true } },
+//           customer: { select: { customer_name: true } },
+//           fromCity: { select: { city_name: true } },
+//           toCity: { select: { city_name: true } },
+//           pump: { select: { pump_name: true } },
+//           extraRemark: { select: { remark_text: true } },
+//           approver: { select: { approver_name: true } },
+//         },
+//       }),
+
+//       prisma.dieselEntry.count()
+//     ]);
+
+//     res.status(200).json({
+//       success: true,
+//       data: entries,
+//       pagination: {
+//         total: totalCount,
+//         page,
+//         limit,
+//         totalPages: Math.ceil(totalCount / limit),
+//       },
+//     });
+
+//   } catch (error) {
+//     console.error('Error fetching entries:', error);
+//     res.status(500).json({
+//       success: false,
+//       error: 'Failed to fetch entries',
+//     });
+//   }
+// };
+
+
 const updateDieselEntrySchema = z.object({
   // --- Direct Fields (Strings) ---
   transaction_id: z.string().optional(),
@@ -243,6 +293,7 @@ export const editEntries = async (req, res) => {
   const { id } = req.params;
 
   try {
+    // 1. Validate Input
     const validated = updateDieselEntrySchema.parse(req.body);
 
     // 2. Resolve Relations (Names -> IDs)
@@ -286,7 +337,7 @@ export const editEntries = async (req, res) => {
       if (pump) relationUpdates.pump_id = pump.id;
     }
 
-    // CUSTOMER (Model: Customer, Map: customers -> prisma.customer)
+    // CUSTOMER
     if (validated.customer_name) {
       const customer = await prisma.customer.findFirst({
         where: { customer_name: validated.customer_name },
@@ -294,7 +345,7 @@ export const editEntries = async (req, res) => {
       if (customer) relationUpdates.customer_id = customer.id;
     }
 
-    // ROUTE (Model: Route, Map: routes -> prisma.route)
+    // ROUTE
     if (validated.route_code) {
       const route = await prisma.route.findFirst({
         where: { route_code: validated.route_code },
@@ -302,7 +353,7 @@ export const editEntries = async (req, res) => {
       if (route) relationUpdates.route_id = route.id;
     }
 
-    // EXTRA REMARK (Model: ExtraDieselRemark, Map: extra_diesel_remarks -> prisma.extraDieselRemark)
+    // EXTRA REMARK
     if (validated.extra_remark_text) {
       const remark = await prisma.extraDieselRemark.findFirst({
         where: { remark_text: validated.extra_remark_text },
@@ -310,7 +361,7 @@ export const editEntries = async (req, res) => {
       if (remark) relationUpdates.extra_diesel_remark_id = remark.id;
     }
 
-    // APPROVER (Model: ExtraDieselApprover, Map: extra_diesel_approvers -> prisma.extraDieselApprover)
+    // APPROVER
     if (validated.approver_name) {
       const approver = await prisma.extraDieselApprover.findFirst({
         where: { approver_name: validated.approver_name },
@@ -318,48 +369,49 @@ export const editEntries = async (req, res) => {
       if (approver) relationUpdates.approved_by_id = approver.id;
     }
 
-    // 3. Construct Final Data Object for Prisma
+    // 3. Construct Final Data Object
+    // FIX START: Do not spread 'validated' directly. Construct manually.
     const updateData = {
-      ...validated,
+      // Start with IDs found
       ...relationUpdates,
-      
-      // Remove string fields so Prisma doesn't complain
-      vehicle_number: undefined,
-      driver_name: undefined,
-      from_city_name: undefined,
-      to_city_name: undefined,
-      pump_name: undefined,
-      customer_name: undefined,
-      route_code: undefined,
-      extra_remark_text: undefined,
-      approver_name: undefined,
+
+      // Add String fields needed for validation/logic
+      transaction_id: validated.transaction_id,
+      invoice_number: validated.invoice_number,
+      material_type: validated.material_type,
+      remarks: validated.remarks,
+      created_by: validated.created_by,
+      trip_status: validated.trip_status,
+      is_new_trip: validated.is_new_trip,
+
+      // Dates - Apply Logic BEFORE putting in object
+      entry_date: validated.entry_date
+        ? new Date(validated.entry_date)
+        : undefined,
+
+      invoice_time: (validated.invoice_time && validated.invoice_time.trim() !== "")
+        ? new Date(`1970-01-01T${validated.invoice_time}`)
+        : null,
     };
+    // FIX END
 
-    // 4. Handle Date & Time
-    if (updateData.entry_date) {
-      updateData.entry_date = new Date(updateData.entry_date);
-    }
-    if (updateData.invoice_time && updateData.invoice_time.trim() !== "") {
-      updateData.invoice_time = new Date(`1970-01-01T${updateData.invoice_time}`);
-    } else {
-      updateData.invoice_time = null;
-    }
-
-    // 5. Handle Decimals
+    // 4. Handle Decimals (Loop through and add only if defined)
     const decimalFields = [
-      'km', 'loading_weight', 'diesel_qty', 
+      'km', 'loading_weight', 'diesel_qty',
       'trip_advance_amount', 'fooding_amount', 'loading_unloading_amount',
       'kata_charges', 'border_charges', 'misc_charges',
       'extra_diesel_qty', 'cut_diesel_qty'
     ];
 
     decimalFields.forEach(field => {
-      if (updateData[field] !== undefined && updateData[field] !== null) {
-        updateData[field] = new Prisma.Decimal(updateData[field]);
+      // Use validated value, check against undefined AND null
+      const val = validated[field];
+      if (val !== undefined && val !== null) {
+        updateData[field] = new Prisma.Decimal(val);
       }
     });
 
-    // 6. Perform Update
+    // 5. Perform Update
     const updatedEntry = await prisma.dieselEntry.update({
       where: { id: Number(id) },
       data: updateData,
@@ -371,8 +423,8 @@ export const editEntries = async (req, res) => {
         fromCity: { select: { city_name: true } },
         toCity: { select: { city_name: true } },
         pump: { select: { pump_name: true } },
-        extraRemark: { select: { remark_text: true } }, // Prisma matches the relation name 'extraRemark' in model
-        approver: { select: { approver_name: true } }, // Prisma matches the relation name 'approver' in model
+        extraRemark: { select: { remark_text: true } },
+        approver: { select: { approver_name: true } },
       },
     });
 
@@ -384,7 +436,7 @@ export const editEntries = async (req, res) => {
 
   } catch (error) {
     console.error('Error updating entry:', error);
-    
+
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         success: false,
@@ -392,7 +444,7 @@ export const editEntries = async (req, res) => {
         details: error.errors,
       });
     }
-    
+
     if (error.code === 'P2025') {
       return res.status(404).json({ success: false, message: 'Entry not found' });
     }
@@ -403,7 +455,6 @@ export const editEntries = async (req, res) => {
     });
   }
 };
-
 // ==================== GET LAST TRIP ====================
 export const getLastTrip = async (req, res) => {
   const { vehicle_id, customer_id } = req.query;
@@ -442,7 +493,10 @@ export const getLastTrip = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: toJSON(lastTrip),
+      data: {
+        ...toJSON(lastTrip),
+        invoice_time: formatTime(lastTrip.invoice_time), // ✅ FIX
+      },
     });
   } catch (error) {
     console.error('getLastTrip Error:', error);
@@ -479,6 +533,7 @@ export const getLastTripVehicle = async (req, res) => {
         route: { select: { route_code: true } },
         fromCity: { select: { city_name: true } },
         toCity: { select: { city_name: true } },
+        driver: { select: { id: true, driver_name: true } },
       },
     });
 
@@ -516,7 +571,7 @@ export const getDriverPending = async (req, res) => {
 
   // IDs for the specific remarks that generate pending diesel
   // IMPORTANT: Ensure these IDs match your 'extra_diesel_remarks' table
-  const CUT_REMARK_IDS = [1, 2]; // 1: Cut from Trip, 2: Cut from Salary
+  const CUT_REMARK_IDS = [6, 7]; // 6: Cut from Trip, 7: Cut from Salary
 
   try {
     const result = await prisma.dieselEntry.aggregate({
@@ -552,188 +607,3 @@ export const getDriverPending = async (req, res) => {
     });
   }
 };
-
-// import { PrismaClient, Prisma } from '@prisma/client';   // ← Import Prisma here
-// import { z } from 'zod';
-
-// const prisma = new PrismaClient();
-
-// // Zod schema (your current one is already good)
-// const createDieselEntrySchema = z.object({
-//   entry_date: z.string().optional().default(new Date().toISOString().split('T')[0]),
-//   vehicle_id: z.number().int().positive(),
-//   driver_id: z.number().int().positive(),
-//   route_id: z.number().int().positive().optional(),
-//   invoice_number: z.string().optional(),
-//   invoice_time: z.string().optional(),
-//   material_type: z.string().optional(),
-//   customer_id: z.number().int().positive().optional(),
-//   from_city_id: z.number().int().positive().optional(),
-//   to_city_id: z.number().int().positive().optional(),
-//   km: z.number().positive().optional(),
-//   diesel_qty: z.number().positive(),
-//   pump_id: z.number().int().positive().optional(),
-//   trip_advance_amount: z.number().nonnegative().default(0),
-//   fooding_amount: z.number().nonnegative().default(0),
-//   loading_unloading_amount: z.number().nonnegative().default(0),
-//   loading_weight: z.number().nonnegative().optional(),
-//   extra_diesel_qty: z.number().nonnegative().default(0),
-//   extra_diesel_remark_id: z.number().int().positive().optional(),
-//   approved_by_id: z.number().int().positive().optional(),
-//   cut_diesel_qty: z.number().nonnegative().default(0),
-//   remarks: z.string().optional(),
-//   is_new_trip: z.boolean().default(true),
-//   trip_status: z.enum(['Loaded', 'Empty']),
-// });
-
-// export const createDieselEntry = async (req, res) => {
-//   try {
-//     const validated = createDieselEntrySchema.parse(req.body);
-
-//     // Extra diesel business rule
-//     if (validated.extra_diesel_qty > 0) {
-//       if (!validated.extra_diesel_remark_id || !validated.approved_by_id) {
-//         return res.status(400).json({
-//           success: false,
-//           error: 'When extra_diesel_qty > 0, both extra_diesel_remark_id and approved_by_id are required',
-//         });
-//       }
-//     }
-
-//     const entry = await prisma.dieselEntry.create({
-//       data: {
-//         ...validated,
-//         created_by: req.user?.email || 'operator',
-//         entry_date: new Date(validated.entry_date),
-//         invoice_time: validated.invoice_time 
-//           ? new Date(`1970-01-01T${validated.invoice_time}`) 
-//           : undefined,
-
-//         // ✅ Correct way to handle Decimal field
-//         loading_weight: validated.loading_weight 
-//           ? new Prisma.Decimal(validated.loading_weight) 
-//           : undefined,
-//       },
-//       include: {
-//         vehicle: true,
-//         driver: true,
-//         pump: true,
-//         customer: true,
-//         fromCity: true,
-//         toCity: true,
-//         extraRemark: true,
-//         approver: true,
-//       },
-//     });
-
-//     res.status(201).json({
-//       success: true,
-//       data: entry,
-//       message: 'Diesel entry created successfully',
-//     });
-//   } catch (error) {
-//     console.error(error);
-//     if (error instanceof z.ZodError) {
-//       return res.status(400).json({
-//         success: false,
-//         error: 'Validation failed',
-//         details: error.errors,
-//       });
-//     }
-//     res.status(500).json({
-//       success: false,
-//       error: 'Failed to create diesel entry',
-//     });
-//   }
-// };
-
-// export const getAllEntries = async (req, res) => {
-//   try {
-//     const entries = await prisma.dieselEntry.findMany({
-//       orderBy: [
-//         { entry_date: 'desc' },
-//         { created_at: 'desc' },
-//       ],
-//       include: {
-//         vehicle: {
-//           select: { vehicle_number: true, vehicle_short_code: true },
-//         },
-//         driver: {
-//           select: { driver_name: true, driver_code: true },
-//         },
-//         route: {
-//           select: { route_code: true },
-//         },
-//         fromCity: {
-//           select: { city_name: true },
-//         },
-//         toCity: {
-//           select: { city_name: true },
-//         },
-//         pump: {
-//           select: { pump_name: true },
-//         },
-//         extraRemark: {
-//           select: { remark_text: true },
-//         },
-//         approver: {
-//           select: { approver_name: true },
-//         },
-//       },
-//     });
-
-//     res.status(200).json({
-//       success: true,
-//       count: entries.length,
-//       data: entries,
-//     });
-//   } catch (error) {
-//     console.error('Error fetching entries:', error);
-//     res.status(500).json({
-//       success: false,
-//       error: 'Failed to fetch entries',
-//     });
-//   }
-// };
-
-// export const getLastTrip = async (req, res) => {
-//   const { vehicle_id, customer_id } = req.query;
-
-//   // Validation
-//   if (!vehicle_id || !customer_id) {
-//     return res.status(400).json({
-//       error: 'Both vehicle_id and customer_id are required in query params',
-//     });
-//   }
-
-//   try {
-//     const lastTrip = await prisma.dieselEntry.findFirst({
-//       where: {
-//         vehicle_id: parseInt(vehicle_id),
-//         customer_id: parseInt(customer_id),
-//       },
-//       orderBy: {
-//         entry_date: 'desc',        // Most recent trip first
-//         // createdAt: 'desc'       // ← Use this if you prefer created timestamp
-//       },
-//       // No include needed – we only want flat data for auto-fill
-//     });
-
-//     if (!lastTrip) {
-//       return res.status(404).json({
-//         error: 'No past trip found for this Customer + Vehicle combination.',
-//       });
-//     }
-
-//     // Return exactly what frontend expects
-//     res.status(200).json({
-//       success: true,
-//       data: lastTrip,
-//     });
-//   } catch (error) {
-//     console.error('getLastTrip Error:', error);
-//     res.status(500).json({
-//       error: 'Failed to fetch last trip details',
-//     });
-//   }
-// };

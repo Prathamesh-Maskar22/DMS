@@ -33,11 +33,11 @@ const LoginPage = ({ onLogin }) => {
       localStorage.setItem('user', JSON.stringify(data.user));
 
       // onLogin(data.user.role);
-      navigate('/dashboard'); // ← uncomment if you want auto-redirect
+      navigate('/all-entry'); // ← uncomment if you want auto-redirect
     } catch (err) {
       console.log(err);
       
-      setError("Something Went Wrong");
+      setError(err.message || "Login failed");
     } finally {
       setLoading(false);
     }

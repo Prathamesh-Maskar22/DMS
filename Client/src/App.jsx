@@ -14,6 +14,7 @@ import CustomerMaster from './Diesel/Pages/CustomerMaster';
 import ExtraRemarkMaster from './Diesel/Pages/ExtraRemarkMaster';
 import ApproverMaster from './Diesel/Pages/ApproverMaster';
 import RouteMaster from './Diesel/Pages/RouteMaster';
+import UserMaster from './Diesel/Pages/UserMaster';
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
           <Route path="/extra-remark-master" element={<ExtraRemarkMaster />} />
           <Route path="/approver-master" element={<ApproverMaster />} />
           <Route path="/route-master" element={<RouteMaster />} />
+          <Route path="/user-master" element={<UserMaster />} />
           {/* Catch-all route for 404s */}
           <Route path="*" element={<NotFoundWIP></NotFoundWIP>} />
         </Route>

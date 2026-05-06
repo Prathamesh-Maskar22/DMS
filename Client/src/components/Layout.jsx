@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['admin'] },
   { icon: Fuel, label: 'Fuel Entry', path: '/fuel-entry' },
   { icon: ReceiptText, label: 'All Entries', path: '/all-entry' },
 
@@ -34,8 +34,7 @@ const navItems = [
   { icon: MessageSquare, label: 'Extra Remarks', path: '/extra-remark-master' },
   { icon: UserCheck, label: 'Approvers', path: '/approver-master' },
 
-  // { icon: FileText, label: 'Reports', path: '/reports' },
-  // { icon: Settings, label: 'Settings', path: '/settings' },
+  { icon: Users, label: 'User Management', path: '/user-master', roles: ['admin'] },
   { icon: LogOut, label: 'Logout', path: '/logout' },
 ];
 
@@ -75,6 +74,11 @@ const AppLayout = () => {
     return current ? current.label : "Dashboard";
   };
 
+  const filteredNavItems = navItems.filter(item => {
+    if (!item.roles) return true; // public
+    return item.roles.includes(user?.role);
+  });
+
   return (
     <div className="flex h-screen bg-gray-50 font-sans">
 
@@ -95,7 +99,7 @@ const AppLayout = () => {
 
         {/* Nav */}
         <nav className="mt-6 px-2 space-y-2">
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <NavLink key={item.path} to={item.path}>
               {({ isActive }) => (
                 <div className="relative group">
@@ -123,9 +127,12 @@ const AppLayout = () => {
 
                   {/* Tooltip */}
                   {collapsed && (
-                    <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2
-                      whitespace-nowrap bg-gray-900 text-white text-xs px-3 py-1.5 rounded-md
-                      opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg">
+                    <div
+                      className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2
+                        whitespace-nowrap bg-gray-900 text-white text-xs px-3 py-1.5 rounded-md
+                        opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg
+                        z-50"
+                    >
                       {item.label}
                     </div>
                   )}

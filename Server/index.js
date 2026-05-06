@@ -14,26 +14,57 @@ app.use(express.json());
 
 import entriesRoutes from './routes/entries.routes.js';
 import mastersRouter from './routes/masters.routes.js'; // <--- Import this
+import userRoutes from './routes/user.routes.js';
 
 app.use('/api/v1/entries', entriesRoutes);
 app.use('/api/v1/masters', mastersRouter);
+app.use('/api/v1/users', userRoutes);
 
-// Login endpoint (your React login calls this)
 app.post('/api/v1/auth/login/', async (req, res) => {
   const { email, password } = req.body;
-  const user = await prisma.user.findUnique({ where: { email } });
 
-  if (!user || !await bcrypt.compare(password, user.password)) {
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  // ❌ User not found
+  if (!user) {
     return res.status(401).json({ detail: 'Invalid credentials' });
   }
 
-  const access = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
-  const refresh = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+  // ❌ User inactive (IMPORTANT FIX)
+  if (!user.is_active) {
+    return res.status(403).json({ detail: 'User is deactivated. Contact admin.' });
+  }
+
+  // ❌ Password mismatch
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return res.status(401).json({ detail: 'Invalid credentials' });
+  }
+
+  // ✅ Generate tokens
+  const access = jwt.sign(
+    { id: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+
+  const refresh = jwt.sign(
+    { id: user.id },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: '7d' }
+  );
 
   res.json({
     access,
     refresh,
-    user: { id: user.id, email: user.email, role: user.role, name: user.name }
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    },
   });
 });
 
